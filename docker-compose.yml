@@ -1,43 +1,49 @@
 services:
-  redis:
-    image: redis:latest
-    container_name: redis
+  db:
+    image: postgres:16-alpine
+    container_name: tiktok_saas_db
+    environment:
+      POSTGRES_DB: tiktok_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "6379:6379"
-
-  web:
-    build: .
-    container_name: web_server
-    command: gunicorn --bind 0.0.0.0:5000 app.main:app
+      - "5432:5432"
     volumes:
-      - ./app:/app/app
-      - ./output_videos:/app/output_videos
-    ports:
-      - "5000:5000"
-    env_file: .env
+      - postgres_data:/var/lib/postgresql/data
 
-  celery-worker:
-    build: .
-    container_name: celery_worker
-    # This command assumes your Celery app instance is discoverable in app.tasks.tasks
-    command: celery -A app.tasks.tasks worker --loglevel=info -c 1
-    volumes:
-      # Mount the entire app directory
-      - ./app:/app/app
-      # Mount output folder to see generated videos on your host machine
-      - ./output_videos:/app/output_videos
-      # Mount assets like the Minecraft video and fonts
-      - ./assets:/app/assets
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: tiktok_saas_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file:
       - .env
-    depends_on:
-      - redis
-
-  flower:
-    image: mher/flower
-    container_name: flower
-    command: flower --broker=redis://redis:6379/0
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tiktok_saas
     ports:
-      - "5555:5555"
+      - "8000:8000"
     depends_on:
-      - redis
+      - db
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: tiktok_saas_worker
+    command: python -m worker.main
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tiktok_saas
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+
+volumes:
+  postgres_data:

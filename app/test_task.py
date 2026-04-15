@@ -1,8 +1,6 @@
-from app.tasks.tasks import ping
+from app.core.database import init_db
+
 
 if __name__ == "__main__":
-    print("Sending a test 'ping' task to the Celery worker...")
-    result = ping.delay()
-    print("Task sent. Task ID:", result.id)
-    print("Waiting for result...")
-    print(f"Result: '{result.get(timeout=10)}'")
+    init_db()
+    print("Database initialized for the FastAPI + worker architecture.")

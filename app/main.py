@@ -1,30 +1,28 @@
-from flask import Flask, request, jsonify
-from celery.result import AsyncResult
-from app.tasks.tasks import create_video_from_post
-import os
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
-app = Flask(__name__)
+from app.api.routes import auth, jobs, worker
+from app.core.config import get_settings
+from app.core.database import init_db
 
-@app.route('/create', methods=['POST'])
-def create_video_endpoint():
-    """
-    API endpoint to create a video.
-    Expects a JSON payload with a "post_data" key,
-    which is a dictionary containing "title" and "text".
-    e.g., {"post_data": {"title": "My story", "text": "AITA for..."}}
-    """
-    if not request.json or 'post_data' not in request.json:
-        return jsonify({"error": "Missing 'post_data' in request body"}), 400
 
-    post_data = request.json['post_data']
-    task = create_video_from_post.delay(post_data)
-    
-    return jsonify({"task_id": task.id}), 202
+def create_app() -> FastAPI:
+    settings = get_settings()
+    init_db()
 
-@app.route('/status/<task_id>')
-def task_status(task_id):
-    task = AsyncResult(task_id, app=create_video_from_post.app)
-    if task.state == 'PENDING':
-        return jsonify({"state": task.state, "status": "Pending..."}), 202
-    else:
-        return jsonify({"state": task.state, "result": str(task.result)})
+    application = FastAPI(title=settings.app_name)
+    application.include_router(auth.router)
+    application.include_router(worker.router)
+    application.include_router(jobs.router)
+
+    if settings.storage_backend.lower() == "local":
+        application.mount("/media", StaticFiles(directory=str(settings.local_storage_path)), name="media")
+
+    @application.get("/health", tags=["health"])
+    def healthcheck() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return application
+
+
+app = create_app()
