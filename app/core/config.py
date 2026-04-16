@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     minecraft_clip_path: str = str(BASE_DIR / "assets" / "minecraft_loop.mp4")
     tiktok_handle: str = "@YourTikTokHandle"
     ffmpeg_threads: int = 4
+    render_video_codec: str = "libx264"
+    render_audio_codec: str = "aac"
+    render_preset: str = "ultrafast"
+    render_amf_usage: str = "transcoding"
+    render_amf_quality: str = "speed"
     worker_api_key: str = "change-me-worker-key"
     worker_stale_timeout_minutes: int = 15
 

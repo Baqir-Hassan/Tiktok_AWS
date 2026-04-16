@@ -1,4 +1,5 @@
 import tempfile
+import logging
 from pathlib import Path
 
 from moviepy import AudioFileClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, concatenate_videoclips
@@ -7,6 +8,9 @@ from PIL import Image, ImageDraw
 from app.core.config import get_settings
 from app.services.subtitle_service import SubtitleResult
 from app.utils.text import sanitize_filename
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class VideoRenderService:
@@ -31,15 +35,39 @@ class VideoRenderService:
                 subtitle_clips = self._create_subtitle_clips(subtitles)
                 final_clip = CompositeVideoClip([background_clip, title_card, *subtitle_clips], size=self.output_size).with_audio(audio)
                 try:
-                    final_clip.write_videofile(
-                        str(output_path),
-                        fps=24,
-                        codec="libx264",
-                        audio_codec="aac",
-                        threads=self.settings.ffmpeg_threads,
-                        preset="ultrafast",
-                        logger=None,
+                    write_kwargs = {
+                        "filename": str(output_path),
+                        "fps": 24,
+                        "codec": self.settings.render_video_codec,
+                        "audio_codec": self.settings.render_audio_codec,
+                        "threads": self.settings.ffmpeg_threads,
+                        "logger": None,
+                    }
+
+                    ffmpeg_params: list[str] = []
+                    if self.settings.render_video_codec.endswith("_amf"):
+                        write_kwargs["preset"] = self.settings.render_amf_quality
+                        ffmpeg_params.extend(
+                            [
+                                "-usage",
+                                self.settings.render_amf_usage,
+                            ]
+                        )
+                    else:
+                        write_kwargs["preset"] = self.settings.render_preset
+
+                    if ffmpeg_params:
+                        write_kwargs["ffmpeg_params"] = ffmpeg_params
+
+                    LOGGER.info(
+                        "Rendering with codec=%s audio_codec=%s preset=%s ffmpeg_params=%s",
+                        write_kwargs["codec"],
+                        write_kwargs["audio_codec"],
+                        write_kwargs.get("preset"),
+                        ffmpeg_params or [],
                     )
+
+                    final_clip.write_videofile(**write_kwargs)
                 finally:
                     final_clip.close()
                     title_card.close()
