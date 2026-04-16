@@ -7,7 +7,9 @@ from app.core.config import get_settings
 
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use bcrypt_sha256 so passlib pre-hashes long or unicode passwords safely
+# before handing them to bcrypt's 72-byte-limited backend.
+pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
