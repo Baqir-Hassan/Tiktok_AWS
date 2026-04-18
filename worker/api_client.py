@@ -54,6 +54,8 @@ class WorkerApiClient:
         progress: int,
         message: str,
         source_title: str | None = None,
+        source_post_id: str | None = None,
+        source_permalink: str | None = None,
         script: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -64,6 +66,10 @@ class WorkerApiClient:
         }
         if source_title is not None:
             payload["source_title"] = source_title
+        if source_post_id is not None:
+            payload["source_post_id"] = source_post_id
+        if source_permalink is not None:
+            payload["source_permalink"] = source_permalink
         if script is not None:
             payload["script"] = script
         return self._request("POST", f"/jobs/{job_id}/update", json=payload, expected_statuses={200}).json()

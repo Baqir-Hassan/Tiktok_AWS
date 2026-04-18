@@ -56,6 +56,8 @@ def update_job(
         message=payload.message,
         progress=payload.progress,
         source_title=payload.source_title,
+        source_post_id=payload.source_post_id,
+        source_permalink=payload.source_permalink,
         script=payload.script,
     )
     return WorkerJobResponse.model_validate(job)

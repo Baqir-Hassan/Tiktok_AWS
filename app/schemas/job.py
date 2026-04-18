@@ -27,6 +27,8 @@ class JobResponse(BaseModel):
     video_upload_status: str
     error_message: str | None
     source_title: str | None
+    source_post_id: str | None
+    source_permalink: str | None
     attempts: int
     created_at: datetime
     started_at: datetime | None

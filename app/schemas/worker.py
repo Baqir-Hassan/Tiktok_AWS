@@ -21,6 +21,9 @@ class WorkerJobResponse(BaseModel):
     tts_provider: str
     source_title: str | None
     source_text: str | None
+    source_post_id: str | None
+    source_permalink: str | None
+    excluded_reddit_post_ids: list[str] = Field(default_factory=list)
     video_url: str | None
     uploaded_video_url: str | None
     video_upload_status: str
@@ -57,6 +60,8 @@ class WorkerUpdateRequest(BaseModel):
     message: str = Field(..., min_length=1)
     progress: int | None = Field(default=None, ge=0, le=100)
     source_title: str | None = Field(default=None, max_length=512)
+    source_post_id: str | None = Field(default=None, max_length=32)
+    source_permalink: str | None = None
     script: str | None = None
 
 

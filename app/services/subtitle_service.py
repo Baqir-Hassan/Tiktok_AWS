@@ -8,7 +8,7 @@ import whisper
 from moviepy import AudioFileClip
 
 from app.core.config import get_settings
-from app.utils.text import expand_abbreviations_for_tts
+from app.utils.text import expand_abbreviations_for_tts, sanitize_whisper_subtitle_text
 
 
 @dataclass
@@ -64,37 +64,36 @@ class SubtitleService:
         word_timestamps = self._extract_word_timestamps(transcription)
         detected_title_duration = self._get_actual_title_duration(transcription, title_text)
         title_duration = self._cap_title_duration(detected_title_duration, title_text)
-        words_after_title = [word for word in word_timestamps if word["start"] >= title_duration]
-        if not words_after_title:
-            words_after_title = word_timestamps
-
-        timing_chunks = self._group_words_into_chunks(words_after_title, words_per_chunk=3)
-        script_lines = self._build_script_lines_for_subtitles(
-            narration_script,
+        chunks = self._build_whisper_chunks(
+            word_timestamps=word_timestamps,
+            title_duration=title_duration,
             words_per_chunk=settings.subtitle_words_per_chunk,
         )
-        chunks = timing_chunks
         if chunks:
             first_chunk_start = float(chunks[0]["start"])
-            # Guardrail: if title filtering pushed subtitles too far into the story,
-            # fall back to whole-audio chunks and keep a short title intro.
-            if first_chunk_start > max(8.0, title_duration + 4.0):
+            if first_chunk_start > max(6.0, title_duration + 3.0):
                 LOGGER.warning(
-                    "Detected late subtitle start at %.2fs; regenerating chunks without title filtering",
+                    "Detected late subtitle start at %.2fs; relaxing title intro duration",
                     first_chunk_start,
                 )
                 title_duration = min(title_duration, 3.8)
-                chunks = self._group_words_into_chunks(word_timestamps, words_per_chunk=3)
+                chunks = self._build_whisper_chunks(
+                    word_timestamps=word_timestamps,
+                    title_duration=title_duration,
+                    words_per_chunk=settings.subtitle_words_per_chunk,
+                )
 
         with AudioFileClip(str(audio_path)) as audio_clip:
             audio_duration = float(audio_clip.duration)
-
-        subtitle_chunks = self._merge_script_text_with_timing(
-            script_lines=script_lines,
-            timing_chunks=chunks,
-            audio_duration=audio_duration,
-            title_duration=title_duration,
-        )
+        subtitle_chunks = [
+            SubtitleChunk(
+                text=chunk["text"],
+                start=max(float(chunk["start"]), title_duration),
+                end=min(audio_duration, max(float(chunk["end"]), float(chunk["start"]) + 0.1)),
+            )
+            for chunk in chunks
+            if float(chunk["end"]) > title_duration
+        ]
         return SubtitleResult(chunks=subtitle_chunks, title_duration=title_duration)
 
     def _generate_with_gemini_fallback(self, audio_path: Path, narration_script: str, title_text: str) -> SubtitleResult:
@@ -172,6 +171,41 @@ class SubtitleService:
                 }
             )
         return chunks
+
+    def _build_whisper_chunks(
+        self,
+        word_timestamps: list[dict],
+        title_duration: float,
+        words_per_chunk: int,
+    ) -> list[dict]:
+        if not word_timestamps:
+            return []
+
+        chunks = self._group_words_into_chunks(word_timestamps, words_per_chunk=max(1, words_per_chunk))
+        cleaned_chunks: list[dict] = []
+        for chunk in chunks:
+            text = self._clean_transcribed_chunk_text(chunk["text"])
+            if not text:
+                continue
+            if float(chunk["end"]) <= title_duration:
+                continue
+            cleaned_chunks.append(
+                {
+                    "text": text,
+                    "start": float(chunk["start"]),
+                    "end": float(chunk["end"]),
+                }
+            )
+        return cleaned_chunks
+
+    def _clean_transcribed_chunk_text(self, text: str) -> str:
+        return sanitize_whisper_subtitle_text(text)
+        # Remove hard transcription artifacts and normalize punctuation spacing.
+        cleaned = text.replace("♪", " ")
+        cleaned = cleaned.replace("[", " ").replace("]", " ")
+        cleaned = cleaned.replace("(", " ").replace(")", " ")
+        cleaned = " ".join(cleaned.split())
+        return cleaned.strip()
 
     def _get_actual_title_duration(self, transcription: dict, title_text: str) -> float:
         title_words = [word.lower().strip(".,!?") for word in title_text.split()]

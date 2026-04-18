@@ -28,12 +28,18 @@ class WorkerService:
     def get_next_job(self) -> Job | None:
         self.requeue_stale_jobs()
         now = datetime.now(timezone.utc)
-        return self.db.scalar(
+        job = self.db.scalar(
             select(Job)
             .where(Job.status == JobStatus.QUEUED.value)
             .where(or_(Job.lease_expires_at.is_(None), Job.lease_expires_at < now))
             .order_by(Job.created_at.asc())
         )
+        if not job:
+            return None
+
+        # Used by workers to avoid selecting duplicate Reddit stories for a user.
+        job.excluded_reddit_post_ids = self._get_user_used_post_ids(job.user_id, job.subreddit)
+        return job
 
     def claim_job(self, job_id: int, worker_id: str) -> Job:
         now = datetime.now(timezone.utc)
@@ -78,6 +84,8 @@ class WorkerService:
         message: str,
         progress: int | None = None,
         source_title: str | None = None,
+        source_post_id: str | None = None,
+        source_permalink: str | None = None,
         script: str | None = None,
     ) -> Job:
         job = self._get_job(job_id)
@@ -89,6 +97,10 @@ class WorkerService:
             job.progress = progress
         if source_title is not None:
             job.source_title = source_title
+        if source_post_id is not None:
+            job.source_post_id = source_post_id
+        if source_permalink is not None:
+            job.source_permalink = source_permalink
         if script is not None:
             job.script = script
 
@@ -248,3 +260,23 @@ class WorkerService:
 
     def _next_lease_expiration(self, now: datetime) -> datetime:
         return now + timedelta(minutes=self.settings.worker_stale_timeout_minutes)
+
+    def _get_user_used_post_ids(self, user_id: int, subreddit: str, limit: int = 500) -> list[str]:
+        rows = self.db.scalars(
+            select(Job.source_post_id)
+            .where(Job.user_id == user_id)
+            .where(Job.subreddit == subreddit)
+            .where(Job.source_post_id.is_not(None))
+            .order_by(Job.created_at.desc())
+            .limit(limit)
+        )
+        seen: set[str] = set()
+        result: list[str] = []
+        for value in rows:
+            if not value:
+                continue
+            if value in seen:
+                continue
+            seen.add(value)
+            result.append(value)
+        return result

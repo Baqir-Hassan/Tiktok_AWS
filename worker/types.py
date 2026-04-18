@@ -12,6 +12,9 @@ class WorkerJob:
     tts_provider: str
     source_title: str | None
     source_text: str | None
+    source_post_id: str | None
+    source_permalink: str | None
+    excluded_reddit_post_ids: list[str]
     video_url: str | None
     uploaded_video_url: str | None
     video_upload_status: str

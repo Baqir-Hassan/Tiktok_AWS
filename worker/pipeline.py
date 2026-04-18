@@ -35,13 +35,18 @@ class WorkerPipeline:
             temp_dir_path = Path(temp_dir)
 
             LOGGER.info("Job %s: scraping Reddit content", job.id)
-            story = self.scraper.fetch_top_post(job.subreddit)
+            story = self.scraper.fetch_top_post(
+                job.subreddit,
+                excluded_post_ids=set(job.excluded_reddit_post_ids or []),
+            )
             self.api_client.update_job(
                 job.id,
                 status="generating_script",
                 progress=30,
                 message=f"Selected post: {story['title']}",
                 source_title=story["title"],
+                source_post_id=story.get("post_id"),
+                source_permalink=story.get("permalink"),
             )
 
             LOGGER.info("Job %s: generating script", job.id)

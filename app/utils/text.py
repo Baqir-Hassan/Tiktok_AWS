@@ -45,6 +45,30 @@ def sanitize_generated_script_for_tts(text: str) -> str:
     return cleaned.strip()
 
 
+def sanitize_whisper_subtitle_text(text: str) -> str:
+    if not text:
+        return ""
+
+    cleaned = text
+    cleaned = cleaned.replace("♪", " ").replace("â™ª", " ")
+    cleaned = cleaned.replace("[", " ").replace("]", " ")
+    cleaned = cleaned.replace("(", " ").replace(")", " ")
+
+    # Remove short stage-direction style chunks if they slip into transcription text.
+    cue_phrases = (
+        "intro music|outro music|music fades|music fade|applause|laughs?|laughter|"
+        "sound effect|sfx|crowd noise|ambient noise|narrator|voiceover|vo"
+    )
+    cleaned = re.sub(
+        rf"(?i)\b(?:{cue_phrases})\b",
+        " ",
+        cleaned,
+    )
+
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip(" -,:;")
+
+
 def expand_abbreviations_for_tts(text: str) -> str:
     abbreviations = {
         "TIFU": "Today I Fucked Up",

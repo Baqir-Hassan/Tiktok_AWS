@@ -32,6 +32,8 @@ class Job(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_post_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    source_permalink: Mapped[str | None] = mapped_column(Text, nullable=True)
     uploaded_video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     video_upload_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
