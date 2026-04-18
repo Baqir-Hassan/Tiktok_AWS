@@ -16,3 +16,4 @@ torch
 numpy
 praw
 boto3
+edge-tts

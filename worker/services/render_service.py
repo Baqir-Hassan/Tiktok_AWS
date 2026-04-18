@@ -1,3 +1,3 @@
-from app.services.render_service import VideoRenderService
+from app.services.render_service_selector import create_video_renderer
 
-__all__ = ["VideoRenderService"]
+__all__ = ["create_video_renderer"]

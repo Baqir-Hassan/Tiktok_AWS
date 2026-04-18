@@ -46,17 +46,40 @@ class Settings(BaseSettings):
     piper_noise_scale: float = 0.667
     piper_length_scale: float = 1.0
     piper_noise_w: float = 0.8
+    edge_tts_voice: str = "en-US-GuyNeural"
+    edge_tts_voice_male: str = "en-US-GuyNeural"
+    edge_tts_voice_female: str = "en-US-JennyNeural"
+    edge_tts_use_gemini_gender_detection: bool = True
+    edge_tts_gender_model: str = "gemini-2.5-flash"
+    edge_tts_rate: str = "+15%"
+    edge_tts_volume: str = "+0%"
+    edge_tts_pitch: str = "+0Hz"
+    edge_tts_max_retries: int = 3
     whisper_model_size: str = "base"
     minecraft_clip_path: str = str(BASE_DIR / "assets" / "minecraft_loop.mp4")
     tiktok_handle: str = "@YourTikTokHandle"
     ffmpeg_threads: int = 4
+    render_backend: str = "moviepy"
     render_video_codec: str = "libx264"
     render_audio_codec: str = "aac"
     render_preset: str = "ultrafast"
     render_amf_usage: str = "transcoding"
-    render_amf_quality: str = "speed"
+    render_amf_quality: str = "balanced"
+    render_video_bitrate: str | None = "5M"
+    render_video_maxrate: str | None = "6M"
+    render_video_bufsize: str | None = "10M"
+    title_font_path: str | None = None
+    subtitle_font_path: str | None = None
+    handle_font_path: str | None = None
+    title_font_size: int = 55
+    handle_font_size: int = 32
+    subtitle_font_size: int = 80
+    subtitle_stroke_width: int = 4
+    subtitle_words_per_chunk: int = 3
+    subtitle_vertical_margin: int = 400
     worker_api_key: str = "change-me-worker-key"
     worker_stale_timeout_minutes: int = 15
+    cors_allow_origins: str = "*"
 
     def ensure_directories(self) -> None:
         self.local_storage_path.mkdir(parents=True, exist_ok=True)

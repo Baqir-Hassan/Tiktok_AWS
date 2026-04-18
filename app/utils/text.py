@@ -18,7 +18,7 @@ def expand_abbreviations_for_tts(text: str) -> str:
         "OP": "Original Poster",
         "IMO": "In My Opinion",
         "IMHO": "In My Humble Opinion",
-        "ELI5": "Explain Like I Am Five",
+        "ELI5": "Explain Like I'm Five",
         "NSFW": "Not Safe For Work",
         "SFW": "Safe For Work",
     }

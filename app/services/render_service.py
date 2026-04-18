@@ -3,10 +3,10 @@ import logging
 from pathlib import Path
 
 from moviepy import AudioFileClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, concatenate_videoclips
-from PIL import Image, ImageDraw
 
 from app.core.config import get_settings
 from app.services.subtitle_service import SubtitleResult
+from app.services.title_card_builder import TitleCardBuilder
 from app.utils.text import sanitize_filename
 
 
@@ -17,6 +17,7 @@ class VideoRenderService:
     def __init__(self) -> None:
         self.settings = get_settings()
         self.output_size = (1080, 1920)
+        self.title_card_builder = TitleCardBuilder()
 
     def render(
         self,
@@ -84,47 +85,24 @@ class VideoRenderService:
         return concatenate_videoclips([clip.copy() for _ in range(loop_count)], method="compose").subclipped(0, target_duration)
 
     def _create_title_card(self, title_text: str, tiktok_handle: str, duration: float) -> CompositeVideoClip:
-        image_path = self._build_title_card_image()
+        image_path = self.title_card_builder.build()
         try:
             card_clip = ImageClip(str(image_path)).with_duration(duration).with_position("center")
             title_clip = TextClip(
                 text=title_text,
-                font_size=56,
+                font_size=self.settings.title_font_size,
                 color="black",
                 size=(780, 320),
                 method="caption",
             ).with_duration(duration).with_position("center")
             handle_clip = TextClip(
                 text=tiktok_handle,
-                font_size=30,
+                font_size=self.settings.handle_font_size,
                 color="black",
             ).with_duration(duration).with_position((285, 790))
             return CompositeVideoClip([card_clip, title_clip, handle_clip], size=self.output_size)
         finally:
             image_path.unlink(missing_ok=True)
-
-    def _build_title_card_image(self) -> Path:
-        card_width = 900
-        card_height = 400
-        shadow_offset = 18
-        image = Image.new("RGBA", (card_width + shadow_offset * 2, card_height + shadow_offset * 2), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
-        draw.rounded_rectangle(
-            [shadow_offset + 8, shadow_offset + 8, card_width + shadow_offset + 8, card_height + shadow_offset + 8],
-            radius=30,
-            fill=(0, 0, 0, 120),
-        )
-        draw.rounded_rectangle(
-            [shadow_offset, shadow_offset, card_width + shadow_offset, card_height + shadow_offset],
-            radius=30,
-            fill=(255, 255, 255, 242),
-        )
-        draw.ellipse([50, 50, 100, 100], fill=(0, 0, 0, 255))
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        temp_file.close()
-        path = Path(temp_file.name)
-        image.save(path)
-        return path
 
     def _create_subtitle_clips(self, subtitles: SubtitleResult) -> list[TextClip]:
         clips: list[TextClip] = []

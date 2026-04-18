@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import shutil
 from tempfile import TemporaryDirectory
 import time
 
@@ -7,7 +8,7 @@ from app.utils.text import sanitize_filename
 from worker.api_client import WorkerApiClient, WorkerStopError
 from worker.config import WorkerSettings
 from worker.services.reddit_service import RedditScraperService
-from worker.services.render_service import VideoRenderService
+from worker.services.render_service import create_video_renderer
 from worker.services.script_service import GeminiScriptService
 from worker.services.storage_service import S3UploadService
 from worker.services.subtitle_service import SubtitleService
@@ -25,7 +26,7 @@ class WorkerPipeline:
         self.scraper = RedditScraperService()
         self.script_service = GeminiScriptService()
         self.subtitle_service = SubtitleService()
-        self.renderer = VideoRenderService()
+        self.renderer = create_video_renderer()
         self.storage = S3UploadService(settings)
         self.tts_factory = TTSProviderFactory()
 
@@ -45,6 +46,7 @@ class WorkerPipeline:
 
             LOGGER.info("Job %s: generating script", job.id)
             script = self.script_service.generate_script(story["title"], story["text"])
+            spoken_script = self._build_spoken_script(story["title"], script)
             self.api_client.update_job(
                 job.id,
                 status="generating_tts",
@@ -56,7 +58,7 @@ class WorkerPipeline:
 
             LOGGER.info("Job %s: generating TTS", job.id)
             audio_path = temp_dir_path / f"{sanitize_filename(story['title'])}.wav"
-            self.tts_factory.get_provider(job.tts_provider).generate(script, audio_path)
+            self.tts_factory.get_provider(job.tts_provider).generate(spoken_script, audio_path)
             self.api_client.update_job(
                 job.id,
                 status="generating_subtitles",
@@ -67,7 +69,13 @@ class WorkerPipeline:
             )
 
             LOGGER.info("Job %s: generating subtitles", job.id)
-            subtitles = self.subtitle_service.generate(audio_path, script, story["title"])
+            subtitles = self.subtitle_service.generate(audio_path, spoken_script, story["title"])
+            LOGGER.info(
+                "Job %s: subtitle chunks=%s title_duration=%.3fs",
+                job.id,
+                len(subtitles.chunks),
+                subtitles.title_duration,
+            )
             self.api_client.update_job(
                 job.id,
                 status="rendering_video",
@@ -78,6 +86,17 @@ class WorkerPipeline:
             )
 
             LOGGER.info("Job %s: rendering video", job.id)
+            LOGGER.info(
+                "Job %s: rendering with codec=%s preset=%s amf_usage=%s",
+                job.id,
+                self.renderer.settings.render_video_codec,
+                self.renderer.settings.render_amf_quality
+                if self.renderer.settings.render_video_codec.endswith("_amf")
+                else self.renderer.settings.render_preset,
+                self.renderer.settings.render_amf_usage
+                if self.renderer.settings.render_video_codec.endswith("_amf")
+                else "n/a",
+            )
             local_video_path = temp_dir_path / self.renderer.build_output_name(story["title"])
             rendered_path, duration_seconds = self.renderer.render(
                 title_text=story["title"],
@@ -86,6 +105,9 @@ class WorkerPipeline:
                 subtitles=subtitles,
                 output_path=local_video_path,
             )
+            preview_path = self.settings.local_preview_dir / f"job-{job.id}-preview.mp4"
+            shutil.copy2(rendered_path, preview_path)
+            LOGGER.info("Job %s: local preview saved to %s", job.id, preview_path)
 
             LOGGER.info("Job %s: uploading final video to S3", job.id)
             target_name = f"{job.id}/final.mp4"
@@ -104,3 +126,12 @@ class WorkerPipeline:
             except Exception:
                 LOGGER.warning("Job %s: completion failed after upload, retrying", job_id, exc_info=True)
                 time.sleep(max(self.settings.poll_interval_seconds, self.settings.api_retry_backoff_seconds))
+
+    def _build_spoken_script(self, title_text: str, script: str) -> str:
+        normalized_title = title_text.strip()
+        normalized_script = script.strip()
+        if not normalized_title:
+            return normalized_script
+        if not normalized_script:
+            return normalized_title
+        return f"{normalized_title}\n\n{normalized_script}"

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import auth, jobs, worker
@@ -11,6 +12,16 @@ def create_app() -> FastAPI:
     init_db()
 
     application = FastAPI(title=settings.app_name)
+    allowed_origins = [origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()]
+    if not allowed_origins:
+        allowed_origins = ["*"]
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     application.include_router(auth.router)
     application.include_router(worker.router)
     application.include_router(jobs.router)

@@ -2,6 +2,7 @@ from app.core.config import get_settings
 from app.providers.tts.base import TTSProvider
 from app.providers.tts.chatterbox import ChatterboxTTSProvider
 from app.providers.tts.coqui import CoquiTTSProvider
+from app.providers.tts.edge import EdgeTTSProvider
 from app.providers.tts.piper import PiperTTSProvider
 
 
@@ -11,6 +12,7 @@ class TTSProviderFactory:
         self.default_provider = settings.tts_provider_default
         self.providers: dict[str, type[TTSProvider]] = {
             PiperTTSProvider.provider_name: PiperTTSProvider,
+            EdgeTTSProvider.provider_name: EdgeTTSProvider,
             ChatterboxTTSProvider.provider_name: ChatterboxTTSProvider,
             CoquiTTSProvider.provider_name: CoquiTTSProvider,
         }

@@ -13,7 +13,7 @@ class GeminiScriptService:
 
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"gemini-2.5-flash:generateContent?key={self.settings.google_api_key}"
+            f"gemini-2.5-flash-lite:generateContent?key={self.settings.google_api_key}"
         )
         prompt = (
             "Format the following Reddit story into a short-form narration script. "
