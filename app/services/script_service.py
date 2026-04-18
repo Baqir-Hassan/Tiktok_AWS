@@ -18,6 +18,9 @@ class GeminiScriptService:
         prompt = (
             "Format the following Reddit story into a short-form narration script. "
             "Preserve the original meaning, remove formatting artifacts, and keep it engaging for voice narration. "
+            "Output plain narration only. "
+            "Do not include stage directions, speaker labels, production notes, bracketed cues, or parenthetical cues "
+            "(for example: [intro music], (pause), Narrator:, SFX:). "
             "Return only the final narration text.\n\n"
             f"Title: {title}\n\nBody:\n{body}"
         )

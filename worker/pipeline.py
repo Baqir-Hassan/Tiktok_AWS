@@ -4,7 +4,7 @@ import shutil
 from tempfile import TemporaryDirectory
 import time
 
-from app.utils.text import sanitize_filename
+from app.utils.text import sanitize_filename, sanitize_generated_script_for_tts
 from worker.api_client import WorkerApiClient, WorkerStopError
 from worker.config import WorkerSettings
 from worker.services.reddit_service import RedditScraperService
@@ -46,14 +46,23 @@ class WorkerPipeline:
 
             LOGGER.info("Job %s: generating script", job.id)
             script = self.script_service.generate_script(story["title"], story["text"])
-            spoken_script = self._build_spoken_script(story["title"], script)
+            cleaned_script = sanitize_generated_script_for_tts(script)
+            if cleaned_script != script:
+                LOGGER.info(
+                    "Job %s: sanitized narration script (raw_len=%s cleaned_len=%s)",
+                    job.id,
+                    len(script),
+                    len(cleaned_script),
+                )
+            script_for_narration = cleaned_script or script
+            spoken_script = self._build_spoken_script(story["title"], script_for_narration)
             self.api_client.update_job(
                 job.id,
                 status="generating_tts",
                 progress=55,
                 message=f"Generating audio with {job.tts_provider}",
                 source_title=story["title"],
-                script=script,
+                script=script_for_narration,
             )
 
             LOGGER.info("Job %s: generating TTS", job.id)
@@ -65,7 +74,7 @@ class WorkerPipeline:
                 progress=75,
                 message="Generating subtitles",
                 source_title=story["title"],
-                script=script,
+                script=script_for_narration,
             )
 
             LOGGER.info("Job %s: generating subtitles", job.id)
@@ -82,7 +91,7 @@ class WorkerPipeline:
                 progress=90,
                 message="Rendering final video",
                 source_title=story["title"],
-                script=script,
+                script=script_for_narration,
             )
 
             LOGGER.info("Job %s: rendering video", job.id)
