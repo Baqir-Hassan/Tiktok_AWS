@@ -17,7 +17,13 @@ def create_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobResponse:
-    job = JobService(db).create_job(current_user, payload.subreddit, payload.tts_provider)
+    job = JobService(db).create_job(
+        current_user,
+        payload.subreddit,
+        payload.tts_provider,
+        payload.custom_title,
+        payload.custom_story,
+    )
     return JobResponse.model_validate(job)
 
 

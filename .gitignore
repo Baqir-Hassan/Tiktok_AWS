@@ -59,6 +59,7 @@ temp_title_card.png
 tracking_files/
 *.txt
 !requirements.txt
+.worker-data/preview
 !README.md
 
 # Logs

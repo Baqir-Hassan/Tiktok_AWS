@@ -4,8 +4,10 @@ from pydantic import BaseModel, Field
 
 
 class JobCreateRequest(BaseModel):
-    subreddit: str = Field(..., min_length=2, max_length=128)
-    tts_provider: str = Field(default="piper", pattern="^[a-z0-9_-]+$")
+    subreddit: str = Field(default="", max_length=128)
+    tts_provider: str = Field(default="edge", pattern="^[a-z0-9_-]+$")
+    custom_title: str | None = Field(default=None, max_length=512)
+    custom_story: str | None = Field(default=None)
 
 
 class JobLogResponse(BaseModel):

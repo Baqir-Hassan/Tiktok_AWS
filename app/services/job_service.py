@@ -19,17 +19,18 @@ class JobService:
         self.db = db
         self.rate_limiter = RateLimitService(db)
 
-    def create_job(self, user: User, subreddit: str, tts_provider: str) -> Job:
+    def create_job(self, user: User, subreddit: str, tts_provider: str, custom_title: str | None = None, custom_story: str | None = None) -> Job:
         self.rate_limiter.enforce_job_creation_limit(user)
         if user.credits < settings.job_cost_credits:
             raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Insufficient credits")
-
         job = Job(
             user_id=user.id,
             status=JobStatus.QUEUED.value,
-            subreddit=subreddit,
+            subreddit=subreddit or "custom",
             tts_provider=tts_provider,
             video_upload_status="pending",
+            source_title=custom_title,
+            source_text=custom_story,
         )
         user.credits -= settings.job_cost_credits
         self.db.add(job)
