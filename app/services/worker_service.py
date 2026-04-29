@@ -27,7 +27,7 @@ class WorkerService:
 
     def get_next_job(self) -> Job | None:
         self.requeue_stale_jobs()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         job = self.db.scalar(
             select(Job)
             .where(Job.status == JobStatus.QUEUED.value)
@@ -43,20 +43,22 @@ class WorkerService:
 
     def claim_job(self, job_id: int, worker_id: str) -> Job:
         now = datetime.now(timezone.utc)
+        # SQLite stores datetimes without timezone; use naive for DB operations
+        now_naive = now.replace(tzinfo=None)
         lease_expires_at = self._next_lease_expiration(now)
         result = self.db.execute(
             update(Job)
             .where(Job.id == job_id)
             .where(Job.status == JobStatus.QUEUED.value)
-            .where(or_(Job.lease_expires_at.is_(None), Job.lease_expires_at < now))
+            .where(or_(Job.lease_expires_at.is_(None), Job.lease_expires_at < now_naive))
             .values(
                 status=JobStatus.PROCESSING.value,
                 progress=10,
                 attempts=Job.attempts + 1,
                 claimed_by=worker_id,
-                claimed_at=now,
+                claimed_at=now_naive,
                 lease_expires_at=lease_expires_at,
-                started_at=func.coalesce(Job.started_at, now),
+                started_at=func.coalesce(Job.started_at, now_naive),
                 error_message=None,
             )
         )
@@ -141,7 +143,7 @@ class WorkerService:
         job.status = JobStatus.COMPLETED.value
         job.progress = 100
         job.video_url = job.uploaded_video_url or video_url
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         job.lease_expires_at = None
         job.video_upload_status = "completed"
         job.error_message = None
@@ -166,7 +168,7 @@ class WorkerService:
         job.status = JobStatus.FAILED.value
         job.progress = 100
         job.error_message = error_message
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         job.lease_expires_at = None
 
         self.db.add(job)
@@ -184,14 +186,14 @@ class WorkerService:
                 detail=f"Cannot heartbeat job in status {job.status}",
             )
 
-        job.heartbeat_at = datetime.now(timezone.utc)
+        job.heartbeat_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.db.add(job)
         self.db.commit()
         self.db.refresh(job)
         return job
 
     def requeue_stale_jobs(self) -> int:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         stale_jobs = list(
             self.db.execute(
                 update(Job)
@@ -253,13 +255,22 @@ class WorkerService:
     def _is_lease_active(self, job: Job) -> bool:
         if not job.lease_expires_at:
             return False
-        return job.lease_expires_at > datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        expires = job.lease_expires_at
+        # SQLite stores datetimes without timezone; make naive if needed for comparison
+        if expires.tzinfo is None:
+            now = now.replace(tzinfo=None)
+        return expires > now
 
     def _is_processing_status(self, job_status: str) -> bool:
         return job_status in ACTIVE_PROCESSING_STATUSES
 
     def _next_lease_expiration(self, now: datetime) -> datetime:
-        return now + timedelta(minutes=self.settings.worker_stale_timeout_minutes)
+        expires = now + timedelta(minutes=self.settings.worker_stale_timeout_minutes)
+        # SQLite stores datetimes without timezone; strip tzinfo for consistent storage
+        if expires.tzinfo is not None:
+            expires = expires.replace(tzinfo=None)
+        return expires
 
     def _get_user_used_post_ids(self, user_id: int, subreddit: str, limit: int = 500) -> list[str]:
         rows = self.db.scalars(

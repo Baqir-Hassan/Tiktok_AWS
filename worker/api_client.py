@@ -152,9 +152,14 @@ class WorkerApiClient:
 
     def _raise_for_response(self, response: requests.Response) -> None:
         try:
-            detail = response.json().get("detail")
+            body = response.json()
+            detail = body.get("detail", response.text)
         except ValueError:
+            body = None
             detail = response.text or f"HTTP {response.status_code}"
+        # Log full response body for 500 errors to aid debugging
+        if response.status_code == 500:
+            LOGGER.error("API 500 response body: %s", body or response.text)
         if response.status_code in {404, 409, 410}:
             raise WorkerStopError(response.status_code, detail)
         raise WorkerApiError(response.status_code, detail)

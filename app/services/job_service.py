@@ -59,9 +59,9 @@ class JobService:
     def update_status(self, job: Job, status_value: JobStatus, message: str | None = None) -> Job:
         job.status = status_value.value
         if status_value == JobStatus.SCRAPING and not job.started_at:
-            job.started_at = datetime.now(timezone.utc)
+            job.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
         if status_value in {JobStatus.COMPLETED, JobStatus.FAILED}:
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.db.add(job)
         if message:
             self.db.add(JobLog(job_id=job.id, stage=status_value.value, message=message))
