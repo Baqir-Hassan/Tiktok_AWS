@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import get_settings
 from app.models.job import Job, JobStatus
@@ -165,6 +165,11 @@ class WorkerService:
 
         self._ensure_processing_mutation_allowed(job, worker_id)
 
+        # Refund the credit since the job didn't produce a video
+        if job.user and job.user.credits < 1000:  # safety cap
+            job.user.credits += self.settings.job_cost_credits
+            self.db.add(job.user)
+
         job.status = JobStatus.FAILED.value
         job.progress = 100
         job.error_message = error_message
@@ -227,7 +232,7 @@ class WorkerService:
         return len(stale_jobs)
 
     def _get_job(self, job_id: int) -> Job:
-        job = self.db.get(Job, job_id)
+        job = self.db.get(Job, job_id, options=[joinedload(Job.user)])
         if not job:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
         return job
