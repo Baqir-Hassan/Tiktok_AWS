@@ -1,0 +1,14 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+[branch "prod"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/prod
+[remote "origin"]
+	url = https://github.com/Baqir-Hassan/Tiktok_AWS.git
+	fetch = +refs/heads/*:refs/remotes/origin/*

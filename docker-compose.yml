@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tiktok_saas_db
+    environment:
+      POSTGRES_DB: tiktok_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: tiktok_saas_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tiktok_saas
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: tiktok_saas_worker
+    command: python -m worker.main
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tiktok_saas
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+
+volumes:
+  postgres_data:
