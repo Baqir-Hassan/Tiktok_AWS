@@ -1,5 +1,5 @@
-from app.services.script_service import GeminiScriptService
+from app.services.script_service import GroqScriptService
 
 
 def generate_script_with_gemini(text):
-    return GeminiScriptService().generate_script("Untitled", text)
+    return GroqScriptService().generate_script("Untitled", text)

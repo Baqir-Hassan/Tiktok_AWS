@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     s3_bucket_name: str | None = None
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
-    google_api_key: str | None = None
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
     reddit_client_id: str | None = None
     reddit_client_secret: str | None = None
     reddit_user_agent: str = "tiktok-saas-backend/1.0"
@@ -46,11 +47,11 @@ class Settings(BaseSettings):
     piper_noise_scale: float = 0.667
     piper_length_scale: float = 1.0
     piper_noise_w: float = 0.8
-    edge_tts_voice: str = "en-US-GuyNeural"
-    edge_tts_voice_male: str = "en-US-GuyNeural"
-    edge_tts_voice_female: str = "en-US-JennyNeural"
-    edge_tts_use_gemini_gender_detection: bool = True
-    edge_tts_gender_model: str = "gemini-2.5-flash"
+    edge_tts_voice: str = "en-US-SteffanNeural"
+    edge_tts_voice_male: str = "en-US-SteffanNeural"
+    edge_tts_voice_female: str = "en-US-AvaNeural"
+    edge_tts_use_gemini_gender_detection: bool = False
+    edge_tts_gender_model: str = "llama-3.3-70b-versatile"
     edge_tts_rate: str = "+15%"
     edge_tts_volume: str = "+0%"
     edge_tts_pitch: str = "+0Hz"

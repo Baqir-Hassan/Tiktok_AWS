@@ -1,20 +1,19 @@
 import requests
+from groq import Groq
 
 from app.core.config import get_settings
 
 
-class GeminiScriptService:
+class GroqScriptService:
     def __init__(self) -> None:
         self.settings = get_settings()
 
     def generate_script(self, title: str, body: str) -> str:
-        if not self.settings.google_api_key:
-            raise RuntimeError("GOOGLE_API_KEY is not configured")
+        if not self.settings.groq_api_key:
+            raise RuntimeError("GROQ_API_KEY is not configured")
 
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"gemini-2.5-flash-lite:generateContent?key={self.settings.google_api_key}"
-        )
+        client = Groq(api_key=self.settings.groq_api_key)
+        
         prompt = (
             "Format the following Reddit story into a short-form narration script. "
             "Preserve the original meaning, remove formatting artifacts, and keep it engaging for voice narration. "
@@ -24,12 +23,20 @@ class GeminiScriptService:
             "Return only the final narration text.\n\n"
             f"Title: {title}\n\nBody:\n{body}"
         )
-        response = requests.post(
-            url,
-            headers={"Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=60,
+        
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            model=self.settings.groq_model,
+            temperature=0.7,
+            max_tokens=1024,
+            top_p=1,
+            stop=None,
+            stream=False,
         )
-        response.raise_for_status()
-        data = response.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        
+        return chat_completion.choices[0].message.content

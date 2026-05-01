@@ -1,3 +1,3 @@
-from app.services.script_service import GeminiScriptService
+from app.services.script_service import GroqScriptService
 
-__all__ = ["GeminiScriptService"]
+__all__ = ["GroqScriptService"]

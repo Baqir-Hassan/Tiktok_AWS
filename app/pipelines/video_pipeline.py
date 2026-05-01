@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.services.job_service import JobService
 from app.services.reddit_service import RedditScraperService
 from app.services.render_service import VideoRenderService
-from app.services.script_service import GeminiScriptService
+from app.services.script_service import GroqScriptService
 from app.services.storage_service import StorageFactory
 from app.services.subtitle_service import SubtitleService
 from app.services.tts_service import TTSProviderFactory
@@ -23,7 +23,7 @@ class VideoGenerationPipeline:
         self.settings = get_settings()
         self.jobs = JobService(db)
         self.scraper = RedditScraperService()
-        self.script_service = GeminiScriptService()
+        self.script_service = GroqScriptService()
         self.subtitle_service = SubtitleService()
         self.renderer = VideoRenderService()
         self.storage = StorageFactory.create()

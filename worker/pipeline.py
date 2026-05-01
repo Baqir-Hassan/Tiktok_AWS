@@ -9,7 +9,7 @@ from worker.api_client import WorkerApiClient, WorkerStopError
 from worker.config import WorkerSettings
 from worker.services.reddit_service import RedditScraperService
 from worker.services.render_service import create_video_renderer
-from worker.services.script_service import GeminiScriptService
+from worker.services.script_service import GroqScriptService
 from worker.services.storage_service import S3UploadService
 from worker.services.subtitle_service import SubtitleService
 from worker.services.tts_service import TTSProviderFactory
@@ -24,7 +24,7 @@ class WorkerPipeline:
         self.settings = settings
         self.api_client = api_client
         self.scraper = RedditScraperService()
-        self.script_service = GeminiScriptService()
+        self.script_service = GroqScriptService()
         self.subtitle_service = SubtitleService()
         self.renderer = create_video_renderer()
         self.storage = S3UploadService(settings)

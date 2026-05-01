@@ -17,3 +17,4 @@ numpy
 praw
 boto3
 edge-tts
+groq
