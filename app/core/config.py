@@ -25,7 +25,11 @@ class Settings(BaseSettings):
     job_cost_credits: int = 1
     job_rate_limit_count: int = 5
     job_rate_limit_window_seconds: int = 3600
+<<<<<<< HEAD
     worker_poll_interval_seconds: int = 10
+=======
+    worker_poll_interval_seconds: int = 5
+>>>>>>> d67fd6b7fa836cfad41557c64a59ea947487770f
     max_job_retries: int = 3
     storage_backend: str = "local"
     local_storage_path: Path = BASE_DIR / "storage" / "videos"

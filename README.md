@@ -215,4 +215,8 @@ See [DEPLOYMENT_AWS.md](../DEPLOYMENT_AWS.md) for the full production deployment
 - Async SaaS backend with explicit job state transitions
 - Clear separation between API, worker, providers, pipeline, and storage
 - Provider-based TTS system with Piper as the default offline engine
+<<<<<<< HEAD
 - AWS-ready deployment path without needing to redesign the application later
+=======
+- AWS-ready deployment path without needing to redesign the application later
+>>>>>>> d67fd6b7fa836cfad41557c64a59ea947487770f
