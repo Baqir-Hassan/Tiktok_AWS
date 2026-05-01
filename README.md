@@ -177,6 +177,42 @@ python main.py
 python -m worker.main
 ```
 
+## Database Migrations
+
+This backend now includes Alembic for schema migrations.
+
+Install dependencies if needed:
+
+```bash
+pip install -r requirements.txt
+```
+
+Apply the latest schema:
+
+```bash
+alembic upgrade head
+```
+
+Create a new migration after model changes:
+
+```bash
+alembic revision --autogenerate -m "describe_change"
+```
+
+For an existing database that already matches the current schema and was created before Alembic was added, mark it as managed without replaying the initial migration:
+
+```bash
+alembic stamp head
+```
+
+Recommended rollout for the current EC2 SQLite database:
+
+1. Back up `saas.db`.
+2. Deploy the latest backend code.
+3. Make sure the live schema already includes the current tables and columns.
+4. Run `alembic stamp head` once.
+5. Use `alembic upgrade head` for future schema changes.
+
 ## AWS Deployment Plan
 
 ### API
@@ -215,8 +251,4 @@ See [DEPLOYMENT_AWS.md](../DEPLOYMENT_AWS.md) for the full production deployment
 - Async SaaS backend with explicit job state transitions
 - Clear separation between API, worker, providers, pipeline, and storage
 - Provider-based TTS system with Piper as the default offline engine
-<<<<<<< HEAD
 - AWS-ready deployment path without needing to redesign the application later
-=======
-- AWS-ready deployment path without needing to redesign the application later
->>>>>>> d67fd6b7fa836cfad41557c64a59ea947487770f
