@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -15,6 +15,7 @@ from app.schemas.auth import (
     UserResponse,
     VerifyEmailRequest,
 )
+from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
 
 
@@ -22,13 +23,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=MessageResponse)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> MessageResponse:
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> MessageResponse:
+    AuthRateLimitService().enforce_register(_get_client_ip(request), payload.email)
     AuthService(db).register(payload.email, payload.password)
     return MessageResponse(message="Account created. Please verify your email before signing in.")
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+    AuthRateLimitService().enforce_login(_get_client_ip(request), payload.email)
     token = AuthService(db).login(payload.email, payload.password)
     return TokenResponse(access_token=token)
 
@@ -40,13 +43,15 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> 
 
 
 @router.post("/resend-verification", response_model=MessageResponse)
-def resend_verification(payload: ResendVerificationRequest, db: Session = Depends(get_db)) -> MessageResponse:
+def resend_verification(payload: ResendVerificationRequest, request: Request, db: Session = Depends(get_db)) -> MessageResponse:
+    AuthRateLimitService().enforce_email_action("resend-verification", _get_client_ip(request), payload.email)
     AuthService(db).resend_verification(payload.email)
     return MessageResponse(message="If an unverified account exists for this email, we sent a verification link.")
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)) -> MessageResponse:
+def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)) -> MessageResponse:
+    AuthRateLimitService().enforce_email_action("forgot-password", _get_client_ip(request), payload.email)
     AuthService(db).forgot_password(payload.email)
     return MessageResponse(message="If an account exists for this email, you will receive a password reset link.")
 
@@ -60,3 +65,15 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(current_user)
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        first_hop = forwarded_for.split(",")[0].strip()
+        if first_hop:
+            return first_hop
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
+    return request.client.host if request.client else "unknown"

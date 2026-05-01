@@ -35,11 +35,16 @@ backend/
 
 ## API Endpoints
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /jobs`
-- `GET /jobs`
-- `GET /jobs/{id}`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/verify-email`
+- `POST /api/v1/auth/resend-verification`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
+- `POST /api/v1/jobs`
+- `GET /api/v1/jobs`
+- `GET /api/v1/jobs/{id}`
+- `GET /api/v1/jobs/{id}/access`
 
 ## Job Lifecycle
 
@@ -212,6 +217,31 @@ Recommended rollout for the current EC2 SQLite database:
 3. Make sure the live schema already includes the current tables and columns.
 4. Run `alembic stamp head` once.
 5. Use `alembic upgrade head` for future schema changes.
+
+## Private Video Access
+
+Rendered videos are now intended to stay private at the storage layer.
+
+- S3-backed jobs should store private object locators, not public bucket URLs.
+- Users should fetch playable/downloadable links through the authenticated jobs API.
+- The backend returns short-lived access URLs for completed jobs.
+- Local storage is no longer exposed through a public static `/media` mount.
+- For existing SQLite databases with older public-style URLs already stored, legacy links can still be surfaced through the authenticated access endpoint until those jobs are regenerated.
+
+Recommended production posture:
+
+1. Keep S3 Block Public Access enabled.
+2. Set `ENVIRONMENT=production`.
+3. Set explicit `CORS_ALLOW_ORIGINS` values, never `*`.
+4. Set strong non-default `SECRET_KEY` and `WORKER_API_KEY`.
+5. Use the jobs access endpoint for playback/download instead of direct object URLs.
+
+## Security Hardening
+
+- Production startup now fails fast if `SECRET_KEY`, `WORKER_API_KEY`, or `CORS_ALLOW_ORIGINS` are left at insecure defaults.
+- `/ready` returns coarse readiness in production to avoid leaking storage paths, bucket names, and raw failure details.
+- Auth endpoints apply request throttling for login, registration, forgot-password, and resend-verification flows.
+- Frontend bearer tokens are intended to stay in memory rather than browser persistent storage.
 
 ## AWS Deployment Plan
 

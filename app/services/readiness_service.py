@@ -7,12 +7,16 @@ from app.services.queue_service import check_queue_connection
 from app.services.storage_service import StorageFactory
 
 
-def collect_readiness_status() -> dict[str, object]:
+def collect_readiness_status(*, include_details: bool = True) -> dict[str, object]:
     database = _check_database()
     queue = check_queue_connection()
     storage = StorageFactory.create().check_connection()
 
     is_ready = all(component.get("ready") is True for component in (database, queue, storage))
+    if not include_details:
+        database = _sanitize_component(database)
+        queue = _sanitize_component(queue)
+        storage = _sanitize_component(storage)
     return {
         "status": "ready" if is_ready else "not_ready",
         "components": {
@@ -30,3 +34,10 @@ def _check_database() -> dict[str, object]:
         return {"ready": True}
     except Exception as exc:
         return {"ready": False, "detail": str(exc)}
+
+
+def _sanitize_component(component: dict[str, object]) -> dict[str, object]:
+    sanitized: dict[str, object] = {"ready": component.get("ready") is True}
+    if "provider" in component:
+        sanitized["provider"] = component["provider"]
+    return sanitized

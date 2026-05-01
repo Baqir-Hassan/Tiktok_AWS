@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -26,16 +25,13 @@ def create_app() -> FastAPI:
     )
     application.include_router(api_router, prefix=settings.api_v1_prefix)
 
-    if settings.storage_backend.lower() == "local":
-        application.mount("/media", StaticFiles(directory=str(settings.local_storage_path)), name="media")
-
     @application.get("/health", tags=["health"])
     def healthcheck() -> dict[str, str]:
         return {"status": "ok"}
 
     @application.get("/ready", tags=["health"])
     def readiness_check() -> JSONResponse:
-        readiness = collect_readiness_status()
+        readiness = collect_readiness_status(include_details=not settings.is_production)
         status_code = 200 if readiness["status"] == "ready" else 503
         return JSONResponse(status_code=status_code, content=readiness)
 

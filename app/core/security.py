@@ -22,12 +22,31 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(subject: str) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expires_at}
+    payload = {"sub": subject, "exp": expires_at, "typ": "auth"}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        if payload.get("typ") != "auth":
+            raise ValueError("Invalid access token")
+        return payload
     except JWTError as exc:
         raise ValueError("Invalid access token") from exc
+
+
+def create_media_access_token(*, job_id: int, user_id: int) -> str:
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=settings.media_access_token_expire_seconds)
+    payload = {"sub": str(user_id), "job_id": job_id, "exp": expires_at, "typ": "media"}
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_media_access_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        if payload.get("typ") != "media":
+            raise ValueError("Invalid media token")
+        return payload
+    except JWTError as exc:
+        raise ValueError("Invalid media token") from exc

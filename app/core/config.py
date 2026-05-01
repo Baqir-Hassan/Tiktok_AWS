@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="development", alias="ENVIRONMENT")
     secret_key: str = Field(default="change-me-in-production", alias="SECRET_KEY")
     access_token_expire_minutes: int = Field(default=1440, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    media_access_token_expire_seconds: int = Field(default=300, alias="MEDIA_ACCESS_TOKEN_EXPIRE_SECONDS")
     verification_token_expire_minutes: int = Field(default=60, alias="VERIFICATION_TOKEN_EXPIRE_MINUTES")
     verification_resend_cooldown_seconds: int = Field(default=60, alias="VERIFICATION_RESEND_COOLDOWN_SECONDS")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
@@ -88,8 +89,12 @@ class Settings(BaseSettings):
     worker_api_key: str = Field(default="change-me-worker-key", alias="WORKER_API_KEY")
     worker_stale_timeout_minutes: int = Field(default=15, alias="WORKER_STALE_TIMEOUT_MINUTES")
     cors_allow_origins: str = Field(default="*", alias="CORS_ALLOW_ORIGINS")
-    verify_email_page_url: str = Field(default="http://localhost:3000/verify-email", alias="VERIFY_EMAIL_PAGE_URL")
-    reset_password_page_url: str = Field(default="http://localhost:3000/reset-password", alias="RESET_PASSWORD_PAGE_URL")
+    auth_login_rate_limit_count: int = Field(default=10, alias="AUTH_LOGIN_RATE_LIMIT_COUNT")
+    auth_register_rate_limit_count: int = Field(default=5, alias="AUTH_REGISTER_RATE_LIMIT_COUNT")
+    auth_email_rate_limit_count: int = Field(default=5, alias="AUTH_EMAIL_RATE_LIMIT_COUNT")
+    auth_rate_limit_window_seconds: int = Field(default=300, alias="AUTH_RATE_LIMIT_WINDOW_SECONDS")
+    verify_email_page_url: str = Field(default="http://localhost:8080/verify-email", alias="VERIFY_EMAIL_PAGE_URL")
+    reset_password_page_url: str = Field(default="http://localhost:8080/reset-password", alias="RESET_PASSWORD_PAGE_URL")
     smtp_host: str = Field(default="", alias="SMTP_HOST")
     smtp_port: int = Field(default=587, alias="SMTP_PORT")
     smtp_username: str = Field(default="", alias="SMTP_USERNAME")
@@ -99,9 +104,25 @@ class Settings(BaseSettings):
     def ensure_directories(self) -> None:
         self.local_storage_path.mkdir(parents=True, exist_ok=True)
 
+    @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in {"production", "prod"}
+
+    def validate_security_settings(self) -> None:
+        if not self.is_production:
+            return
+        if self.secret_key == "change-me-in-production":
+            raise RuntimeError("SECRET_KEY must be set to a non-default value in production.")
+        if self.worker_api_key == "change-me-worker-key":
+            raise RuntimeError("WORKER_API_KEY must be set to a non-default value in production.")
+        origins = [origin.strip() for origin in self.cors_allow_origins.split(",") if origin.strip()]
+        if not origins or any(origin == "*" for origin in origins):
+            raise RuntimeError("CORS_ALLOW_ORIGINS must be explicitly configured in production.")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     settings = Settings()
     settings.ensure_directories()
+    settings.validate_security_settings()
     return settings

@@ -45,3 +45,8 @@ class JobDetailResponse(JobResponse):
 
 class JobListResponse(BaseModel):
     jobs: list[JobResponse]
+
+
+class JobAccessResponse(BaseModel):
+    url: str
+    expires_in_seconds: int | None = None

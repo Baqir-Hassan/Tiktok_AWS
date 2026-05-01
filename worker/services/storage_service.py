@@ -17,7 +17,4 @@ class S3UploadService:
             "ContentType": mimetypes.guess_type(source_path.name)[0] or "video/mp4",
         }
         self.client.upload_file(str(source_path), self.settings.s3_bucket, key, ExtraArgs=extra_args)
-
-        if self.settings.public_s3_base_url:
-            return f"{self.settings.public_s3_base_url.rstrip('/')}/{key}"
-        return f"https://{self.settings.s3_bucket}.s3.{self.settings.aws_region}.amazonaws.com/{key}"
+        return f"s3://{self.settings.s3_bucket}/{key}"

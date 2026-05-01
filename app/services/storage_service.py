@@ -1,7 +1,6 @@
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from urllib.parse import quote
 
 import boto3
 
@@ -44,7 +43,7 @@ class LocalStorageService(StorageService):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
         relative_path = destination.relative_to(self.settings.local_storage_path).as_posix()
-        return f"{self.settings.public_media_base_url.rstrip('/')}/{quote(relative_path)}"
+        return f"local://{relative_path}"
 
     def check_connection(self) -> dict[str, object]:
         base_path = self.settings.local_storage_path.resolve()
@@ -91,9 +90,7 @@ class S3StorageService(StorageService):
         source = self._validate_source_path(source_path)
         safe_target_name = self._sanitize_target_name(target_name)
         self.client.upload_file(str(source), self.settings.s3_bucket_name, safe_target_name)
-        if self.settings.aws_s3_endpoint_url:
-            return f"{self.settings.aws_s3_endpoint_url.rstrip('/')}/{self.settings.s3_bucket_name}/{safe_target_name}"
-        return f"https://{self.settings.s3_bucket_name}.s3.{self.settings.aws_region}.amazonaws.com/{quote(safe_target_name)}"
+        return f"s3://{self.settings.s3_bucket_name}/{safe_target_name}"
 
     def check_connection(self) -> dict[str, object]:
         bucket = self.settings.s3_bucket_name
