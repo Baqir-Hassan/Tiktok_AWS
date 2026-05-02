@@ -28,7 +28,9 @@ class WorkerJob:
     created_at: str
     started_at: str | None
     completed_at: str | None
-
+    ustom_story: str | None = None
+    custom_story_title: str | None = None
+    
     @classmethod
     def from_api(cls, payload: dict[str, Any]) -> "WorkerJob":
         return cls(**payload)

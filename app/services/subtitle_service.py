@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 import requests
-import whisper
+from faster_whisper import WhisperModel
 from moviepy import AudioFileClip
 
 from app.core.config import get_settings
@@ -30,7 +30,11 @@ LOGGER = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def load_whisper_model():
-    return whisper.load_model(settings.whisper_model_size)
+    return WhisperModel(
+        settings.whisper_model_size,
+        device="cpu",
+        compute_type="int8"
+    )
 
 
 class SubtitleService:
@@ -54,12 +58,27 @@ class SubtitleService:
     def _generate_with_whisper(self, audio_path: Path, narration_script: str, title_text: str) -> SubtitleResult:
         model = load_whisper_model()
         prompt_text = expand_abbreviations_for_tts(narration_script)
-        transcription = model.transcribe(
+        segments, _ = model.transcribe(
             str(audio_path),
             word_timestamps=True,
             language="en",
             initial_prompt=prompt_text,
         )
+        transcription = {"segments": []}
+        for segment in segments:
+            transcription["segments"].append({
+                "text": segment.text,
+                "start": segment.start,
+                "end": segment.end,
+                "words": [
+                    {
+                        "word": w.word,
+                        "start": w.start,
+                        "end": w.end,
+                    }
+                    for w in (segment.words or [])
+                ],
+            })
 
         word_timestamps = self._extract_word_timestamps(transcription)
         detected_title_duration = self._get_actual_title_duration(transcription, title_text)
