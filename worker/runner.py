@@ -61,7 +61,7 @@ class WorkerRunner:
                     # Map technical errors to user-friendly messages
                     user_friendly_message = self._get_user_friendly_error_message(exc)
                     try:
-                        self.api_client.fail_job(job.id, str(exc), user_friendly_message)
+                        self.api_client.fail_job(job.id, user_friendly_message)
                     except Exception as stop_exc:
                         LOGGER.warning("Job %s fail request aborted: %s", job.id, stop_exc)
             except Exception:

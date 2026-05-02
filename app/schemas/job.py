@@ -35,6 +35,8 @@ class JobResponse(BaseModel):
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
+    custom_story: str | None = None
+    custom_story_title: str | None = None
 
     model_config = {"from_attributes": True}
 

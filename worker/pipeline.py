@@ -34,11 +34,20 @@ class WorkerPipeline:
         with TemporaryDirectory(prefix=f"job-{job.id}-", dir=str(self.settings.local_work_dir)) as temp_dir:
             temp_dir_path = Path(temp_dir)
 
-            LOGGER.info("Job %s: scraping Reddit content", job.id)
-            story = self.scraper.fetch_top_post(
-                job.subreddit,
-                excluded_post_ids=set(job.excluded_reddit_post_ids or []),
-            )
+            if job.custom_story:
+                LOGGER.info("Job %s: using custom story", job.id)
+                story = {
+                    "title": job.custom_story_title or "Custom Story",
+                    "text": job.custom_story,
+                    "post_id": None,
+                    "permalink": None,
+                }
+            else:  
+                LOGGER.info("Job %s: scraping Reddit content", job.id)
+                story = self.scraper.fetch_top_post(
+                    job.subreddit,
+                    excluded_post_ids=set(job.excluded_reddit_post_ids or []),
+                )
             self.api_client.update_job(
                 job.id,
                 status="generating_script",
