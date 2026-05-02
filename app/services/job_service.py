@@ -29,8 +29,8 @@ class JobService:
             subreddit=subreddit or "custom",
             tts_provider=tts_provider,
             video_upload_status="pending",
-            source_title=custom_title,
-            source_text=custom_story,
+            custom_story_title=custom_title,
+            custom_story=custom_story,
         )
         user.credits -= settings.job_cost_credits
         self.db.add(job)
