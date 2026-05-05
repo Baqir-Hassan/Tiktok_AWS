@@ -32,8 +32,8 @@ LOGGER = logging.getLogger(__name__)
 def load_whisper_model():
     return WhisperModel(
         settings.whisper_model_size,
-        device="cpu",
-        compute_type="int8"
+        device="cuda",
+        compute_type="float16"
     )
 
 

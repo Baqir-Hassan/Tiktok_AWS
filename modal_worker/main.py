@@ -21,7 +21,7 @@ image = (
             "RENDER_BACKEND": "ffmpeg",
             "RENDER_VIDEO_CODEC": "h264_nvenc",
             "RENDER_AUDIO_CODEC": "aac",
-            "RENDER_PRESET": "veryfast",
+            "RENDER_PRESET": "fast",
             "FFMPEG_THREADS": "4",
         }
     )
