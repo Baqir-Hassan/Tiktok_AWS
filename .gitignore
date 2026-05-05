@@ -92,3 +92,4 @@ celerybeat.pid
 # WSL
 .wslconfig
 
+modal-venv/

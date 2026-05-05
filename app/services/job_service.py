@@ -46,13 +46,12 @@ class JobService:
     def _trigger_modal_worker(self, job: Job) -> None:
         """Trigger the Modal worker function for the job."""
         try:
-            import modal
-            from modal.functions import Function
-            
-            # Get the function
-            process_job_fn = Function.lookup("saas-worker", "process_job")
-            
-            # Convert job to dict for API
+            from modal_worker import app as modal_worker_app
+
+            process_job_fn = modal_worker_app.process_job
+            if not hasattr(process_job_fn, "spawn"):
+                raise RuntimeError("Modal worker function does not support spawn()")
+
             job_dict = {
                 "id": job.id,
                 "user_id": job.user_id,
@@ -81,10 +80,9 @@ class JobService:
                 "custom_story": job.custom_story,
                 "custom_story_title": job.custom_story_title,
             }
-            
-            # Call the function asynchronously
+
             process_job_fn.spawn(job_dict)
-            
+
         except Exception as e:
             # Log error but don't fail job creation
             print(f"Failed to trigger Modal worker: {e}")

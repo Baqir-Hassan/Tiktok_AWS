@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
 import time
+from typing import Any
 
 # Import from project
 from app.utils.text import sanitize_filename, sanitize_generated_script_for_tts
@@ -16,6 +17,52 @@ from worker.services.storage_service import S3UploadService
 from worker.services.subtitle_service import SubtitleService
 from worker.services.tts_service import TTSProviderFactory
 from worker.types import WorkerJob
+
+
+class LocalWorkerApiClient:
+    def __init__(self, settings: WorkerSettings):
+        self.settings = settings
+
+    def update_job(
+        self,
+        job_id: int,
+        status: str,
+        progress: int,
+        message: str,
+        source_title: str | None = None,
+        source_post_id: str | None = None,
+        source_permalink: str | None = None,
+        script: str | None = None,
+    ) -> dict[str, Any]:
+        LOGGER.info(
+            "[local test] update_job: %s %s %s %s",
+            job_id,
+            status,
+            progress,
+            message,
+        )
+        return {}
+
+    def complete_job(self, job_id: int, video_url: str, duration_seconds: float | None = None) -> dict[str, Any]:
+        LOGGER.info("[local test] complete_job: %s %s %s", job_id, video_url, duration_seconds)
+        return {"video_url": video_url}
+
+    def fail_job(self, job_id: int, error_message: str) -> dict[str, Any]:
+        LOGGER.info("[local test] fail_job: %s %s", job_id, error_message)
+        return {"error_message": error_message}
+
+
+class LocalStorageService:
+    def __init__(self, settings: WorkerSettings):
+        self.settings = settings
+
+    def upload_video(self, source_path: Path, target_name: str) -> str:
+        target_dir = self.settings.local_preview_dir
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / Path(target_name).name
+        shutil.copy2(source_path, target_path)
+        LOGGER.info("[local test] saved video to %s", target_path)
+        return str(target_path.resolve())
 
 
 LOGGER = logging.getLogger(__name__)
@@ -54,8 +101,9 @@ def run_job_pipeline(job_data: dict) -> dict:
     # Create settings
     settings = get_modal_settings()
     
-    # Create API client
-    api_client = WorkerApiClient(settings)
+    # Local test mode bypasses API/state updates and S3 upload.
+    use_local_mode = os.getenv("LOCAL_MODAL_TEST", "0") == "1" or not os.getenv("API_BASE_URL")
+    api_client = LocalWorkerApiClient(settings) if use_local_mode else WorkerApiClient(settings)
     
     # Convert job_data to WorkerJob
     job = WorkerJob.from_api(job_data)
@@ -65,7 +113,7 @@ def run_job_pipeline(job_data: dict) -> dict:
     script_service = GroqScriptService()
     subtitle_service = SubtitleService()
     renderer = create_video_renderer()
-    storage = S3UploadService(settings)
+    storage = LocalStorageService(settings) if use_local_mode else S3UploadService(settings)
     tts_factory = TTSProviderFactory()
     
     try:
