@@ -38,7 +38,7 @@ tiktok_venv/
 .env.local
 .env.*.local
 *.env
-
+.env.backup
 # IDE
 .vscode/
 .idea/

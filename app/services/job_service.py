@@ -37,7 +37,58 @@ class JobService:
         self.db.add(JobLog(job=job, stage=JobStatus.QUEUED.value, message="Job created and queued"))
         self.db.commit()
         self.db.refresh(job)
+        
+        # Trigger Modal worker
+        self._trigger_modal_worker(job)
+        
         return job
+
+    def _trigger_modal_worker(self, job: Job) -> None:
+        """Trigger the Modal worker function for the job."""
+        try:
+            import modal
+            from modal.functions import Function
+            
+            # Get the function
+            process_job_fn = Function.lookup("saas-worker", "process_job")
+            
+            # Convert job to dict for API
+            job_dict = {
+                "id": job.id,
+                "user_id": job.user_id,
+                "status": job.status,
+                "subreddit": job.subreddit,
+                "script": job.script,
+                "tts_provider": job.tts_provider,
+                "source_title": job.source_title,
+                "source_text": job.source_text,
+                "source_post_id": job.source_post_id,
+                "source_permalink": job.source_permalink,
+                "excluded_reddit_post_ids": job.excluded_reddit_post_ids or [],
+                "video_url": job.video_url,
+                "uploaded_video_url": job.uploaded_video_url,
+                "video_upload_status": job.video_upload_status,
+                "error_message": job.error_message,
+                "progress": job.progress,
+                "attempts": job.attempts,
+                "claimed_by": job.claimed_by,
+                "claimed_at": job.claimed_at.isoformat() if job.claimed_at else None,
+                "heartbeat_at": job.heartbeat_at.isoformat() if job.heartbeat_at else None,
+                "lease_expires_at": job.lease_expires_at.isoformat() if job.lease_expires_at else None,
+                "created_at": job.created_at.isoformat(),
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "custom_story": job.custom_story,
+                "custom_story_title": job.custom_story_title,
+            }
+            
+            # Call the function asynchronously
+            process_job_fn.spawn(job_dict)
+            
+        except Exception as e:
+            # Log error but don't fail job creation
+            print(f"Failed to trigger Modal worker: {e}")
+            # Could add to job log here
 
     def list_jobs(self, user: User) -> list[Job]:
         return list(

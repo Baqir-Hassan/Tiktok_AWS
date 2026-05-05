@@ -20,3 +20,4 @@ boto3
 edge-tts
 groq
 faster-whisper
+modal
