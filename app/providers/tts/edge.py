@@ -29,14 +29,26 @@ class EdgeTTSProvider(TTSProvider):
         voice_id = self._resolve_voice_id(text)
         last_exception: Exception | None = None
 
+        def _format_parameter(val: str) -> str:
+            val = val.strip()
+            if not val:
+                return "+0%"
+            if not (val.startswith("+") or val.startswith("-")):
+                return f"+{val}"
+            return val
+
+        rate = _format_parameter(self.settings.edge_tts_rate)
+        volume = _format_parameter(self.settings.edge_tts_volume)
+        pitch = _format_parameter(self.settings.edge_tts_pitch)
+
         for _ in range(max(1, self.settings.edge_tts_max_retries)):
             try:
                 communicate = edge_tts.Communicate(
                     speech_text,
                     voice=voice_id,
-                    rate=self.settings.edge_tts_rate,
-                    volume=self.settings.edge_tts_volume,
-                    pitch=self.settings.edge_tts_pitch,
+                    rate=rate,
+                    volume=volume,
+                    pitch=pitch,
                 )
                 asyncio.run(communicate.save(str(output_path)))
                 return output_path
