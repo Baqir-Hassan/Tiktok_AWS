@@ -85,6 +85,14 @@ class WorkerApiClient:
             expected_statuses={200},
         ).json()
 
+    def heartbeat_job(self, job_id: int) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/jobs/{job_id}/heartbeat",
+            json={"worker_id": self.settings.worker_id},
+            expected_statuses={200},
+        ).json()
+
     def fail_job(self, job_id: int, error_message: str) -> dict[str, Any]:
         return self._request(
             "POST",

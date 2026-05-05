@@ -1,39 +1,50 @@
-import modal
-import os
+from pathlib import Path
 
-# Define the Modal app
+import modal
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+SAAS_ROOT = BACKEND_ROOT.parent
+
 app = modal.App("saas-worker")
 
-# Define the image with dependencies and local source packages
 image = (
     modal.Image.debian_slim()
-    .pip_install_from_requirements("requirements.txt")
-    .apt_install("ffmpeg")  # Install FFmpeg
-    .run_commands(
-        "apt-get update && apt-get install -y libsndfile1",  # For audio processing
+    .apt_install("ffmpeg", "libass9", "libsndfile1")
+    .pip_install_from_requirements(str(BACKEND_ROOT / "requirements.txt"))
+    .add_local_file(str(SAAS_ROOT / "minecraft_loop.mp4"), "/assets/minecraft_loop.mp4")
+    .env(
+        {
+            "MINECRAFT_CLIP_PATH": "/assets/minecraft_loop.mp4",
+            "IMAGEIO_FFMPEG_EXE": "/usr/bin/ffmpeg",
+            "FFMPEG_BINARY": "/usr/bin/ffmpeg",
+            "RENDER_BACKEND": "ffmpeg",
+            "RENDER_VIDEO_CODEC": "libx264",
+            "RENDER_AUDIO_CODEC": "aac",
+            "RENDER_PRESET": "veryfast",
+            "FFMPEG_THREADS": "4",
+        }
     )
     .add_local_python_source("worker", "app", "modal_worker")
 )
 
-# Secrets for API keys, etc.
-# In local testing, we skip Modal-managed secrets and rely on environment variables.
-# For deployed Modal usage, add Modal secrets here and enable the `secrets` list.
-secrets = []
+secrets = [modal.Secret.from_name("saas-worker-secrets")]
 
-# Placeholder for job processing function
 @app.function(
     image=image,
     secrets=secrets,
-    timeout=1800  # 30 minutes timeout for video processing
+    timeout=1800,
 )
 def process_job(job_data):
-    # Import and run pipeline
     from modal_worker.pipeline import run_job_pipeline
+
     return run_job_pipeline(job_data)
 
-# Local test entrypoint
+
 @app.local_entrypoint()
 def main():
+    import os
+
+    os.environ.setdefault("LOCAL_MODAL_TEST", "1")
     job_data = {
         "id": 1,
         "user_id": 1,

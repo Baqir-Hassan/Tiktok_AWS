@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -9,6 +10,8 @@ from app.models.job import Job, JobStatus
 from app.models.job_log import JobLog
 from app.models.user import User
 from app.services.rate_limit_service import RateLimitService
+
+logger = logging.getLogger(__name__)
 
 
 settings = get_settings()
@@ -46,12 +49,9 @@ class JobService:
     def _trigger_modal_worker(self, job: Job) -> None:
         """Trigger the Modal worker function for the job."""
         try:
-            from modal_worker import app as modal_worker_app
+            from modal.functions import Function
 
-            process_job_fn = modal_worker_app.process_job
-            if not hasattr(process_job_fn, "spawn"):
-                raise RuntimeError("Modal worker function does not support spawn()")
-
+            process_job_fn = Function.from_name("saas-worker", "process_job")
             job_dict = {
                 "id": job.id,
                 "user_id": job.user_id,
@@ -84,9 +84,12 @@ class JobService:
             process_job_fn.spawn(job_dict)
 
         except Exception as e:
-            # Log error but don't fail job creation
-            print(f"Failed to trigger Modal worker: {e}")
-            # Could add to job log here
+            logger.exception("Failed to trigger Modal worker for job %s", job.id)
+            try:
+                self.db.add(JobLog(job_id=job.id, stage=JobStatus.QUEUED.value, message=f"Modal trigger failed: {e}"))
+                self.db.commit()
+            except Exception:
+                logger.exception("Failed to log Modal trigger failure for job %s", job.id)
 
     def list_jobs(self, user: User) -> list[Job]:
         return list(

@@ -192,6 +192,7 @@ class WorkerService:
             )
 
         job.heartbeat_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        job.lease_expires_at = self._next_lease_expiration(datetime.now(timezone.utc))
         self.db.add(job)
         self.db.commit()
         self.db.refresh(job)
