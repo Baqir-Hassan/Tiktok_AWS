@@ -49,9 +49,14 @@ class JobService:
     def _trigger_modal_worker(self, job: Job) -> None:
         """Trigger the Modal worker function for the job."""
         try:
-            from modal.functions import Function
+            import modal
+            from app.services.worker_service import WorkerService
 
-            process_job_fn = Function.from_name("saas-worker", "process_job")
+            process_job_fn = modal.Function.from_name("saas-worker", "process_job")
+            
+            worker_service = WorkerService(self.db)
+            excluded_ids = worker_service._get_user_used_post_ids(job.user_id, job.subreddit)
+
             job_dict = {
                 "id": job.id,
                 "user_id": job.user_id,
@@ -63,7 +68,7 @@ class JobService:
                 "source_text": job.source_text,
                 "source_post_id": job.source_post_id,
                 "source_permalink": job.source_permalink,
-                "excluded_reddit_post_ids": job.excluded_reddit_post_ids or [],
+                "excluded_reddit_post_ids": excluded_ids,
                 "video_url": job.video_url,
                 "uploaded_video_url": job.uploaded_video_url,
                 "video_upload_status": job.video_upload_status,
