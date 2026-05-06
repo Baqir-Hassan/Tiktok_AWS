@@ -10,7 +10,11 @@ app = modal.App("saas-worker")
 # the CUDA toolkit — the standard Ubuntu apt package does NOT include GPU hw-accel.
 image = (
     modal.Image.from_registry(
-        "jrottenberg/ffmpeg:6.1-cuda12.1-ubuntu22",
+        # GPU-capable build: FFmpeg 8.1 + NVDEC/NVENC on Ubuntu 24.04.
+        # Tag format changed to {ffmpeg_ver}-{backend}{ubuntu_ver}.
+        # Use the exact amd64 digest for reproducibility and to avoid
+        # accidentally pulling an arm64 layer on Modal's x86 fleet.
+        "jrottenberg/ffmpeg:8.1-nvidia2404",
         add_python="3.11",
     )
     .apt_install("libass9", "libsndfile1", "fontconfig")
