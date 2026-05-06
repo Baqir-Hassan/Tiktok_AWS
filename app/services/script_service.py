@@ -20,6 +20,7 @@ class GroqScriptService:
             "Output plain narration only. "
             "Do not include stage directions, speaker labels, production notes, bracketed cues, or parenthetical cues "
             "(for example: [intro music], (pause), Narrator:, SFX:). "
+            "Make sure the story in is first person"
             "Return only the final narration text.\n\n"
             f"Title: {title}\n\nBody:\n{body}"
         )

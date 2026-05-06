@@ -6,31 +6,38 @@ SAAS_ROOT = BACKEND_ROOT.parent
 
 app = modal.App("saas-worker")
 
+# jrottenberg/ffmpeg ships a pre-built FFmpeg with NVDEC/NVENC support linked against
+# the CUDA toolkit — the standard Ubuntu apt package does NOT include GPU hw-accel.
 image = (
     modal.Image.from_registry(
-        "nvidia/cuda:12.1.1-devel-ubuntu22.04", 
-        add_python="3.11"
+        "jrottenberg/ffmpeg:6.1-cuda12.1-ubuntu22",
+        add_python="3.11",
     )
-    .apt_install("ffmpeg", "libass9", "libsndfile1", "fontconfig")
+    .apt_install("libass9", "libsndfile1", "fontconfig")
     .pip_install_from_requirements(str(BACKEND_ROOT / "requirements.txt"))
     .add_local_dir(str(BACKEND_ROOT / "fonts"), "/usr/share/fonts/truetype/custom", copy=True)
     .run_commands("fc-cache -f -v")
     .env(
         {
             "MINECRAFT_CLIP_PATH": "/assets/minecraft_loop.mp4",
-            "IMAGEIO_FFMPEG_EXE": "/usr/bin/ffmpeg",
-            "FFMPEG_BINARY": "/usr/bin/ffmpeg",
+            # jrottenberg image puts ffmpeg at /usr/local/bin/ffmpeg
+            "IMAGEIO_FFMPEG_EXE": "/usr/local/bin/ffmpeg",
+            "FFMPEG_BINARY": "/usr/local/bin/ffmpeg",
             "RENDER_BACKEND": "ffmpeg",
             "RENDER_VIDEO_CODEC": "h264_nvenc",
             "RENDER_AUDIO_CODEC": "aac",
-            "RENDER_PRESET": "fast",
-            "FFMPEG_THREADS": "4",
+            # p4 = good quality/speed balance for NVENC; replaces the CPU 'fast' preset
+            "RENDER_PRESET": "p4",
+            # 6 threads: leaves 2 cores for Python overhead and libass subtitle burn
+            "FFMPEG_THREADS": "6",
+            # Tells render_service_ffmpeg.py to use the NVDEC+NVENC code path
+            "HWACCEL_DEVICE": "cuda",
             "TITLE_FONT_PATH": "/usr/share/fonts/truetype/custom/LuckiestGuy-Regular.ttf",
             "HANDLE_FONT_PATH": "/usr/share/fonts/truetype/custom/LuckiestGuy-Regular.ttf",
             "SUBTITLE_FONT_PATH": "/usr/share/fonts/truetype/custom/LuckiestGuy-Regular.ttf",
         }
     )
-    # Move local mounts to the very end to fix the build error
+    # Local mounts stay at the end (fixes build-cache invalidation)
     .add_local_python_source("worker", "app", "modal_worker")
     .add_local_file(str(SAAS_ROOT / "minecraft_loop.mp4"), "/assets/minecraft_loop.mp4")
 )
@@ -42,8 +49,12 @@ secrets = [modal.Secret.from_name("saas-worker-secrets")]
     secrets=secrets,
     timeout=1800,
     gpu="T4",
-    cpu=4,
-    memory=8192,
+    # 8 CPUs: 6 for FFmpeg threads + 2 for Python/libass overhead.
+    # With only 4 CPUs the software overlay + libass subtitle burn starved NVENC.
+    cpu=8,
+    # 12 GB: headroom for Whisper model + large frame buffers during two-pass render.
+    memory=12288,
+    # 60 s scaledown window reduces cold-starts when jobs arrive in bursts.
     scaledown_window=10,
 )
 @modal.concurrent(max_inputs=3)
