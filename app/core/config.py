@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     subtitle_font_size: int = Field(default=80, alias="SUBTITLE_FONT_SIZE")
     subtitle_stroke_width: int = Field(default=4, alias="SUBTITLE_STROKE_WIDTH")
     subtitle_words_per_chunk: int = Field(default=3, alias="SUBTITLE_WORDS_PER_CHUNK")
-    subtitle_vertical_margin: int = Field(default=400, alias="SUBTITLE_VERTICAL_MARGIN")
+    subtitle_vertical_margin: int = Field(default=650, alias="SUBTITLE_VERTICAL_MARGIN")
     worker_api_key: str = Field(default="change-me-worker-key", alias="WORKER_API_KEY")
     worker_stale_timeout_minutes: int = Field(default=15, alias="WORKER_STALE_TIMEOUT_MINUTES")
     cors_allow_origins: str = Field(default="*", alias="CORS_ALLOW_ORIGINS")

@@ -11,8 +11,10 @@ image = (
         "nvidia/cuda:12.1.1-devel-ubuntu22.04", 
         add_python="3.11"
     )
-    .apt_install("ffmpeg", "libass9", "libsndfile1")
+    .apt_install("ffmpeg", "libass9", "libsndfile1", "fontconfig")
     .pip_install_from_requirements(str(BACKEND_ROOT / "requirements.txt"))
+    .add_local_dir(str(BACKEND_ROOT / "fonts"), "/usr/share/fonts/truetype/custom", copy=True)
+    .run_commands("fc-cache -f -v")
     .env(
         {
             "MINECRAFT_CLIP_PATH": "/assets/minecraft_loop.mp4",
@@ -23,6 +25,9 @@ image = (
             "RENDER_AUDIO_CODEC": "aac",
             "RENDER_PRESET": "fast",
             "FFMPEG_THREADS": "4",
+            "TITLE_FONT_PATH": "/usr/share/fonts/truetype/custom/LuckiestGuy-Regular.ttf",
+            "HANDLE_FONT_PATH": "/usr/share/fonts/truetype/custom/LuckiestGuy-Regular.ttf",
+            "SUBTITLE_FONT_PATH": "/usr/share/fonts/truetype/custom/LuckiestGuy-Regular.ttf",
         }
     )
     # Move local mounts to the very end to fix the build error
@@ -38,8 +43,10 @@ secrets = [modal.Secret.from_name("saas-worker-secrets")]
     timeout=1800,
     gpu="T4",
     cpu=4,
-    memory=8192, # Changed from string to integer MB
+    memory=8192,
+    scaledown_window=10,
 )
+@modal.concurrent(max_inputs=3)
 def process_job(job_data):
     from modal_worker.pipeline import run_job_pipeline
     return run_job_pipeline(job_data)
